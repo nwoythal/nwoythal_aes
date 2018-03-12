@@ -36,12 +36,12 @@ def expand_key(key, itr):
     new_mat = [[key[1][3]], [key[2][3]], [key[3][3]], [key[0][3]]]
     sub_col = sub_bytes(new_mat)
 
-    for i in range(0, len(sub_col)):
+    for i in range(len(sub_col)):
         new_mat[i][0] = sub_col[i][0]^rcon[itr + 1] # xor round constant
 
-    for i in range(1, len(key[0])):
-        for j in range(0, len(key[0])):
-            new_mat[j].append(key[j - 1][i] ^ key[j][i])
+    for i in range(len(key[0])):
+        for j in range(len(key[0])):
+            new_mat[j].append(key[j][i] ^ key[j][i])
 
     if(debug):
         print("NEW KEY")
@@ -67,9 +67,9 @@ def sub_bytes(matrix):
 
 def shift_rows(matrix):
     shifted_mat = matrix  # Destructive function, so to preserve the matrix, we reassign the variable
-    for x in range(0, len(shifted_mat)):
+    for x in range(len(shifted_mat)):
         shifted_row = shifted_mat[x]
-        for itr in range(0, x):
+        for itr in range(x):
             shifted_row.append(shifted_row.pop(0))
 
     if(debug):
@@ -80,11 +80,11 @@ def shift_rows(matrix):
 
 def mix_columns(matrix):
     result_array = []
-    for i in range(0, len(matrix)):
+    for i in range(len(matrix)):
         result_row = []
-        for j in range(0, len(matrix)):
+        for j in range(len(matrix)):
             res = 0
-            for k in range(0, len(matrix)):
+            for k in range(len(matrix)):
                 if(mix_col_mat[i][k] & 0b10):  # Handles 2 and 3
                     res = res ^ (matrix[k][j] << 1)    # Shift left 1.
                 if(mix_col_mat[i][k] & 0b1):   # Handles 1 and 3
@@ -104,9 +104,9 @@ def mix_columns(matrix):
 
 def add_round_key(matrix, round_key):
     added_mat = []
-    for row in range(0, len(matrix)):
+    for row in range(len(matrix)):
         added_row = []
-        for col in range(0, len(matrix)):
+        for col in range(len(matrix)):
             added_row.append(matrix[row][col] ^ round_key[row][col])
         added_mat.append(added_row)
 
@@ -126,8 +126,8 @@ def create_matrix(data, convert=False, text=False):
 
     # Sometimes we'll need to convert a key from hex strings to integers, step into here.
     if(convert):
-        for row in range(0, len(mat)):
-            for elem in range(0, len(mat[row])):
+        for row in range(len(mat)):
+            for elem in range(len(mat[row])):
                 if(text):
                     mat[row][elem] = ord(mat[row][elem])
                 else:
@@ -167,7 +167,7 @@ if __name__ == "__main__":
     ciphertext = []
     i = 0
 
-    padded_text = args.plaintext.ljust(len(args.plaintext) % 16, '\0')  # Pad with NUL so it can be properly divvied.
+    padded_text = args.plaintext.ljust(len(args.plaintext) + 16 - len(args.plaintext) % 16, '\0')  # Pad with NUL so it can be properly divvied.
     while i < len(padded_text):
         blocks.append(padded_text[i:i + 16])  # Take 16 chars chars, this gives us the 128 bytes we need.
         i += 16
@@ -178,7 +178,6 @@ if __name__ == "__main__":
         key_matrix = create_matrix(args.key, convert=True)
         block = add_round_key(block, key_matrix)
         key_expanded = expand_key(key_matrix, 0)
-        pdb.set_trace()
         if(debug):
             print("Initial round complete. Beginning full process.")
         
@@ -186,10 +185,7 @@ if __name__ == "__main__":
             sub_mat = sub_bytes(block)
             shift_mat = shift_rows(sub_mat)
             mix_mat = mix_columns(shift_mat)
-            try:
-                block = add_round_key(mix_mat, key_expanded)
-            except:
-                pdb.set_trace()
+            block = add_round_key(mix_mat, key_expanded)
             key_expanded = expand_key(key_expanded, round_count)
 
         # Final round
