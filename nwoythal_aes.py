@@ -36,12 +36,12 @@ def expand_key(key, itr):
     new_mat = [[key[1][3]], [key[2][3]], [key[3][3]], [key[0][3]]]
     sub_col = sub_bytes(new_mat)
 
-    for i in range(len(sub_col)):
-        new_mat[i][0] = sub_col[i][0]^rcon[itr + 1] # xor round constant
+    for row in range(len(sub_col)):
+        new_mat[row][0] = sub_col[row][0] ^ rcon[itr + 1] ^ key[row][0]  # xor round constant, key, insert into new key
 
-    for i in range(len(key[0])):
-        for j in range(len(key[0])):
-            new_mat[j].append(key[j][i] ^ key[j][i])
+    for col in range(1, len(key)):
+        for row in range(len(key)):
+            new_mat[row].append(key[row][col] ^ new_mat[row][col - 1])
 
     if(debug):
         print("NEW KEY")
@@ -54,9 +54,9 @@ def sub_bytes(matrix):
     for row in matrix:
         sub_row = []
         for item in row:
-            x = ((item & 0xF0) >> 4) & 0x0F  # I don't know if Python can shift in garbage, but I'm not taking any chances.
-            y = item & 0x0F
-            sub_row.append(sbox[x][y])
+            x = (item >> 4) & 0xF  # Grab top 4 bits.
+            y = item & 0x0F        # Grab bottom 4 bits.
+            sub_row.append(sbox[x][y])  # Use grabbed bits in table lookup
         sub_mat.append(sub_row)
 
     if(debug):
@@ -113,15 +113,33 @@ def add_round_key(matrix, round_key):
     return added_mat
 
 
-def create_matrix(data, convert=False, text=False):
+def create_matrix(data, convert=False, text=False, key=False):
     mat = []
     i = 0
     while i < len(data):
         if(not text):
-            mat.append([data[i:i + 2], data[i + 2:i + 4], data[i + 4:i + 6], data[i + 6:i + 8]])
+            try:
+                mat[i % 4].append(data[i:i + 2])
+                mat[(i + 1) % 4].append(data[i + 2:i + 4])
+                mat[(i + 2) % 4].append(data[i + 4:i + 6])
+                mat[(i + 3) % 4].append(data[i + 6:i + 8])
+            except IndexError:  # Stupid workaround to get initial column.
+                mat.append([data[i:i + 2]])
+                mat.append([data[i + 2:i + 4]])
+                mat.append([data[i + 4:i + 6]])
+                mat.append([data[i + 6:i + 8]])
             i += 4
         else:
-            mat.append([data[i], data[i + 1], data[i + 2], data[i + 3]])
+            try:
+                mat[i % 4].append(data[i])
+                mat[(i + 1) % 4].append(data[i + 1])
+                mat[(i + 2) % 4].append(data[i + 2])
+                mat[(i + 3) % 4].append(data[i + 3])
+            except IndexError:  # Stupid workaround to get initial column.
+                mat.append([data[i]])
+                mat.append([data[i + 1]])
+                mat.append([data[i + 2]])
+                mat.append([data[i + 3]])
         i += 4
 
     # Sometimes we'll need to convert a key from hex strings to integers, step into here.
@@ -132,6 +150,10 @@ def create_matrix(data, convert=False, text=False):
                     mat[row][elem] = ord(mat[row][elem])
                 else:
                     mat[row][elem] = int(mat[row][elem], 16)
+
+    if(debug):
+        print("NEW MATRIX")
+        dump_matrix(mat)
 
     return mat
 
@@ -166,6 +188,7 @@ if __name__ == "__main__":
     blocks = []
     ciphertext = []
     i = 0
+    key_matrix = create_matrix(args.key, convert=True, key=True)
 
     padded_text = args.plaintext.ljust(len(args.plaintext) + 16 - len(args.plaintext) % 16, '\0')  # Pad with NUL so it can be properly divvied.
     while i < len(padded_text):
@@ -175,12 +198,11 @@ if __name__ == "__main__":
     for block in blocks:
         # Initial round
         block = create_matrix(block, convert=True, text=True)
-        key_matrix = create_matrix(args.key, convert=True)
         block = add_round_key(block, key_matrix)
         key_expanded = expand_key(key_matrix, 0)
         if(debug):
             print("Initial round complete. Beginning full process.")
-        
+
         for round_count in range(1, iterations):
             sub_mat = sub_bytes(block)
             shift_mat = shift_rows(sub_mat)
