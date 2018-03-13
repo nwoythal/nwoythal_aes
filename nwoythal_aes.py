@@ -1,7 +1,5 @@
 #!/usr/bin/python3
 import argparse
-import pprint
-import pdb
 
 mix_col_mat = [[2, 3, 1, 1],
                [1, 2, 3, 1],
@@ -29,7 +27,6 @@ sbox = [[0x63, 0x7C, 0x77, 0x7B, 0xF2, 0x6B, 0x6F, 0xC5, 0x30, 0x01, 0x67, 0x2B,
 rcon = [0x8d, 0x01, 0x02, 0x04, 0x08, 0x10, 0x20, 0x40, 0x80, 0x1b, 0x36, 0x6c, 0xd8]
 
 debug = 0
-pp = pprint.PrettyPrinter(indent=4)
 
 
 def expand_key(key, itr):
@@ -190,7 +187,7 @@ if __name__ == "__main__":
     i = 0
     key_matrix = create_matrix(args.key, convert=True, key=True)
 
-    padded_text = args.plaintext.ljust(len(args.plaintext) + 16 - len(args.plaintext) % 16, '\0')  # Pad with NUL so it can be properly divvied.
+    padded_text = args.plaintext.ljust(len(args.plaintext) + (16 - (len(args.plaintext)  % 16)), '\0')  # Pad with NUL so it can be properly divvied.
     while i < len(padded_text):
         blocks.append(padded_text[i:i + 16])  # Take 16 chars chars, this gives us the 128 bytes we need.
         i += 16
@@ -214,11 +211,11 @@ if __name__ == "__main__":
         sub_mat = sub_bytes(block)
         shift_mat = shift_rows(sub_mat)
         ciphertext.append(add_round_key(shift_mat, key_expanded))
-    
+
     flattened_ciphertext = ""
     for block in ciphertext:
-        for row in block:
-            for char in row:
-                flattened_ciphertext = flattened_ciphertext + str(char) + ' '
-    print("Ciphertext is", flattened_ciphertext)
+        for col in range(len(block)):
+            for row in range(len(block)):
+                flattened_ciphertext += chr(block[col][row])
 
+    print("Ciphertext is", repr(flattened_ciphertext))
