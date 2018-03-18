@@ -1,5 +1,6 @@
 #!/usr/bin/python3
 import argparse
+import pdb
 
 mix_col_mat = [[2, 3, 1, 1],
                [1, 2, 3, 1],
@@ -27,6 +28,7 @@ sbox = [[0x63, 0x7C, 0x77, 0x7B, 0xF2, 0x6B, 0x6F, 0xC5, 0x30, 0x01, 0x67, 0x2B,
 rcon = [0x8d, 0x01, 0x02, 0x04, 0x08, 0x10, 0x20, 0x40, 0x80, 0x1b, 0x36, 0x6c, 0xd8]
 
 debug = 0
+key_expansion = 0
 
 
 def expand_key(key, itr):
@@ -40,8 +42,8 @@ def expand_key(key, itr):
         for row in range(len(key)):
             new_mat[row].append(key[row][col] ^ new_mat[row][col - 1])
 
-    if(debug):
-        print("NEW KEY")
+    if(debug or key_expansion):
+        print("NEW KEY FOR ROUND " + str(itr + 1))
         dump_matrix(new_mat)
     return new_mat
 
@@ -83,7 +85,7 @@ def mix_columns(matrix):
             res = 0
             for k in range(len(matrix)):
                 if(mix_col_mat[i][k] & 0b10):  # Handles 2 and 3
-                    res = res ^ (matrix[k][j] << 1)    # Shift left 1.
+                    res = matrix[k][j] << 1    # Shift left 1.
                 if(mix_col_mat[i][k] & 0b1):   # Handles 1 and 3
                     res = matrix[k][j] ^ res   # Add original
 
@@ -171,11 +173,14 @@ if __name__ == "__main__":
     parser.add_argument('plaintext', help='Plaintext you want to encrypt.')
     parser.add_argument('key', help='128/192/256-bit key to use.')
     parser.add_argument('--debug', help='Set debug level.', action="store_true")
+    parser.add_argument('--key_expansion', help='Set debug level.', action="store_true")
     args = parser.parse_args()
     if(args.debug):
         print("Debug mode ON")
         debug = 1
-    iterations = 10
+    if(args.key_expansion):
+        print("Key expansion printing ON")
+        key_expansion = 1
     if(not len(args.key) == 32):
         print("Key is improper length. Exiting...")
         if(debug):
@@ -185,9 +190,10 @@ if __name__ == "__main__":
     blocks = []
     ciphertext = []
     i = 0
+    iterations = 10
     key_matrix = create_matrix(args.key, convert=True, key=True)
 
-    padded_text = args.plaintext.ljust(len(args.plaintext) + (16 - (len(args.plaintext)  % 16)), '\0')  # Pad with NUL so it can be properly divvied.
+    padded_text = args.plaintext.ljust(len(args.plaintext) + (16 - len(args.plaintext)) % 16, '\0')  # Pad with NUL so it can be properly divvied.
     while i < len(padded_text):
         blocks.append(padded_text[i:i + 16])  # Take 16 chars chars, this gives us the 128 bytes we need.
         i += 16
