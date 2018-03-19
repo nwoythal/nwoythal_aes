@@ -173,7 +173,7 @@ if __name__ == "__main__":
     parser.add_argument('plaintext', help='Plaintext you want to encrypt.')
     parser.add_argument('key', help='128/192/256-bit key to use.')
     parser.add_argument('--debug', help='Set debug level.', action="store_true")
-    parser.add_argument('--key_expansion', help='Set debug level.', action="store_true")
+    parser.add_argument('--key_expansion', help='Print all key expansion information.', action="store_true")
     args = parser.parse_args()
     if(args.debug):
         print("Debug mode ON")
